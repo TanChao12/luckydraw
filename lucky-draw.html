@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lucky Draw — Kelab Tiong Hua KPZ</title>
+<style>
+  :root{
+    --sky-blue: #5ecfff;
+    --grass-green: #3cb657;
+    --balloon-orange: #ff6b35;
+    --balloon-yellow: #f7b731;
+    
+    --ink-dark: #2c3e50;
+    --panel-glass: rgba(255, 255, 255, 0.25);
+    --card-glass: rgba(255, 255, 255, 0.85);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;}
+  body{
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    color: var(--ink-dark);
+    background-image: url(bg.png);
+    background-size: cover;
+    background-position: top center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* Frosted Glass Stage Container - GPU Optimized */
+  .stage{
+    position: relative;
+    width: min(94vw, 640px);
+    padding: 45px 35px;
+    background: var(--panel-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 32px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    z-index: 2;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: backdrop-filter;
+  }
+
+  /* Poster Text Typography */
+  .title-group {
+    color: #ffffff;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.25), -1px -1px 0 rgba(0,0,0,0.1);
+    font-weight: bold;
+    margin-bottom: 32px;
+  }
+  .title-malay {
+    font-size: clamp(22px, 5.5vw, 32px);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .title-chinese {
+    font-size: clamp(18px, 4.5vw, 24px);
+    letter-spacing: 1px;
+  }
+
+  /* Bright & Fresh Number Reels - Promoted to GPU Layer */
+  .cards{display:flex;gap:16px;justify-content:center;margin:10px 0 32px;flex-wrap:wrap}
+  .card{
+    width: clamp(65px, 15vw, 92px);
+    height: clamp(95px, 22vw, 132px);
+    background: var(--card-glass);
+    border-radius: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(46px, 11vw, 72px);
+    font-weight: 800;
+    color: #2c3e50;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+    transform: translateZ(0);
+    will-change: transform, color, border-color;
+  }
+  .card.spinning{
+    border-color: var(--balloon-orange);
+    color: var(--balloon-orange);
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+  }
+  .card.locked{
+    border-color: #27ae60;
+    color: #27ae60;
+    transform: translateY(-2px) translateZ(0);
+  }
+
+  /* Primary Accent Button */
+  .action{
+    width: 100%;
+    padding: 18px;
+    font-size: 20px; font-weight: 800; letter-spacing: 1px;
+    color: #fff; border: none; border-radius: 20px; cursor: pointer;
+    background: linear-gradient(180deg, var(--balloon-yellow), var(--balloon-orange));
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 25px -6px rgba(255, 107, 53, 0.5);
+    transition: filter .2s, transform 0.1s;
+  }
+  .action:hover{ filter: brightness(1.05); }
+  .action:active{ transform: translateY(1px); }
+  .action:disabled{ filter: grayscale(.6) opacity(.5); cursor: not-allowed; box-shadow: none; }
+
+  .hint{ font-size: 14px; color: #d63031; margin-top: 14px; min-height: 20px; font-weight: 600; }
+
+  /* POP-UP MODAL - Hardware Accelerated Opacity/Transform */
+  .winner-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s linear;
+    will-change: opacity;
+    transform: translateZ(0);
+  }
+  .winner-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(44, 62, 80, 0.6);
+    backdrop-filter: blur(8px);
+  }
+  .modal-content {
+    position: relative;
+    width: min(88vw, 460px);
+    padding: 45px 35px;
+    background: #ffffff;
+    border-radius: 30px;
+    text-align: center;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
+    transform: scale(0.9) translateY(10px) translateZ(0);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 3;
+    will-change: transform;
+  }
+  .winner-modal.show .modal-content {
+    transform: scale(1) translateY(0) translateZ(0);
+  }
+  .modal-eyebrow {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--balloon-orange);
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .modal-number {
+    font-size: clamp(80px, 18vw, 120px);
+    font-weight: 900;
+    color: var(--ink-dark);
+    line-height: 1;
+    margin: 15px 0 25px;
+    letter-spacing: -1px;
+  }
+  .type-badge {
+    display: inline-block;
+    padding: 6px 18px;
+    background: rgba(60, 182, 87, 0.12);
+    border: 1px solid var(--grass-green);
+    color: var(--grass-green);
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+  }
+  .close-modal-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--ink-dark);
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .close-modal-btn:hover { 
+    background: var(--grass-green); 
+  }
+</style>
+</head>
+<body>
+
+  <main class="stage" id="mainStage">
+    <div class="title-group">
+      </div>
+
+    <div class="cards" id="cards"></div>
+
+    <button class="action" id="actionBtn">Start Draw</button>
+    <div class="hint" id="hint"></div>
+  </main>
+
+  <div class="winner-modal" id="winnerModal" aria-hidden="true">
+    <div class="modal-bg" id="modalBg"></div>
+    <div class="modal-content">
+      <div class="modal-eyebrow">Congratulations 🎉</div>
+      <h2 style="font-size: 22px; font-weight: 800; color: var(--ink-dark);">Lucky Winner</h2>
+      <div class="modal-number" id="modalWinnerNum">00</div>
+      <div class="type-badge" id="mbtiBadge">INFJ - Advocate</div>
+      <button class="close-modal-btn" id="closeModalBtn">Dismiss</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ==========================================
+  //  BACKEND CONFIGURATION
+  // ==========================================
+  const CONFIG = {
+    fromNumber: 1,        
+    toNumber: 40,         
+    noRepeat: true,       
+    autoStop: false       // false = Manual loop control | true = Instant auto tracking
+  };
+
+  const MBTI_TYPES = [
+    "INTJ - Architect", "INTP - Logician", "ENTJ - Commander", "ENTP - Debater",
+    "INFJ - Advocate", "INFP - Mediator", "ENFJ - Protagonist", "ENFP - Campaigner",
+    "ISTJ - Logistician", "ISFJ - Defender", "ESTJ - Executive", "ESFJ - Consul",
+    "ISTP - Virtuoso", "ISFP - Adventurer", "ESTP - Entrepreneur", "ESFP - Entertainer"
+  ];
+
+  // ---- elements ----
+  const cardsEl   = document.getElementById('cards');
+  const btn       = document.getElementById('actionBtn');
+  const hint      = document.getElementById('hint');
+  const modal     = document.getElementById('winnerModal');
+  const modalNum  = document.getElementById('modalWinnerNum');
+  const modalBg   = document.getElementById('modalBg');
+  const modalClose= document.getElementById('closeModalBtn');
+  const mbtiBadge = document.getElementById('mbtiBadge');
+
+  // ---- state ----
+  let winners = [];
+  let D = String(CONFIG.toNumber).length; 
+  let phase = 'idle';        
+  let pool = [];             
+  let lockedPrefix = '';     
+  let currentDigit = 0;
+  let spinCands = [];        
+  let spinIdx = 0;
+  let busy = false;          
+  
+  // High Performance Animation Tracking State
+  let lastTickTime = 0;
+  const TICK_INTERVAL = 60; // 60ms draw update speed
+
+  // ---- helpers ----
+  const pad = (n) => String(n).padStart(D, '0');
+
+  function buildPool(from, to){
+    const out = [];
+    for(let n = from; n <= to; n++){
+      if(CONFIG.noRepeat && winners.includes(n)) continue;
+      out.push(pad(n));
+    }
+    return out;
+  }
+
+  function candidatesAt(prefix){
+    const set = new Set();
+    for(const s of pool){
+      if(s.startsWith(prefix)) set.add(s[prefix.length]);
+    }
+    return Array.from(set).sort();
+  }
+
+  function renderCards(){
+    cardsEl.innerHTML = '';
+    for(let i=0;i<D;i++){
+      const c = document.createElement('div');
+      c.className = 'card';
+      c.id = 'card'+i;
+      c.textContent = '–';
+      cardsEl.appendChild(c);
+    }
+  }
+
+  function setCard(i, val, cls){
+    const c = document.getElementById('card'+i);
+    if(!c) return;
+    c.textContent = val;
+    c.classList.remove('spinning','locked');
+    if(cls) c.classList.add(cls);
+  }
+
+  // ---- drawing engines ----
+  function startDraw(){
+    const from = CONFIG.fromNumber;
+    const to   = CONFIG.toNumber;
+
+    if(!Number.isFinite(from) || !Number.isFinite(to) || to < from || from < 0) return;
+
+    D = String(to).length;
+    renderCards();
+
+    pool = buildPool(from, to);
+    if(pool.length === 0){
+      hint.textContent = 'All numbers have already been drawn!';
+      return;
+    }
+
+    hint.textContent = '';
+
+    if(CONFIG.autoStop){
+      autoReveal();
+    } else {
+      lockedPrefix = '';
+      currentDigit = 0;
+      beginManualDigit();
+    }
+  }
+
+  function beginManualDigit(){
+    phase = 'spinning';
+    spinCands = candidatesAt(lockedPrefix);
+    spinIdx = 0;
+    
+    const initialCard = document.getElementById('card'+currentDigit);
+    if(initialCard) {
+      initialCard.textContent = spinCands[0];
+      initialCard.classList.remove('locked');
+      initialCard.classList.add('spinning');
+    }
+    
+    btn.textContent = 'Stop Digit ' + (currentDigit + 1);
+    
+    // Kick off hardware synchronized animation frame loop
+    lastTickTime = performance.now();
+    requestAnimationFrame(loopManualDigit);
+  }
+
+  function loopManualDigit(now) {
+    if (phase !== 'spinning') return; // Safely terminate loop if state shifts
+
+    requestAnimationFrame(loopManualDigit);
+
+    // Frame throttling optimization
+    if (now - lastTickTime >= TICK_INTERVAL) {
+      lastTickTime = now;
+      spinIdx = (spinIdx + 1) % spinCands.length;
+      const c = document.getElementById('card'+currentDigit);
+      if (c) c.textContent = spinCands[spinIdx];
+    }
+  }
+
+  function stopManualDigit(){
+    phase = 'idle'; // Stop the requestAnimationFrame loop immediately
+    
+    const chosen = spinCands[spinIdx];
+    setCard(currentDigit, chosen, 'locked');
+    lockedPrefix += chosen;
+    currentDigit++;
+
+    if(currentDigit < D){
+      beginManualDigit();
+    } else {
+      finalize(parseInt(lockedPrefix, 10));
+    }
+  }
+
+  async function autoReveal(){
+    busy = true; phase = 'auto';
+    btn.disabled = true; btn.textContent = 'Drawing…';
+
+    const target = pool[Math.floor(Math.random() * pool.length)];
+
+    for(let i=0;i<D;i++){
+      const c = document.getElementById('card'+i);
+      c.classList.add('spinning');
+      const spins = 12 + i*4; 
+      for(let s=0;s<spins;s++){
+        c.textContent = Math.floor(Math.random()*10);
+        await wait(45);
+      }
+      setCard(i, target[i], 'locked');
+      await wait(150);
+    }
+    finalize(parseInt(target, 10));
+  }
+
+  function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  function finalize(num){
+    winners.push(num);
+    phase = 'idle'; busy = false;
+    btn.disabled = false;
+    btn.textContent = 'Draw Again';
+
+    const assignedType = MBTI_TYPES[Math.floor(Math.random() * MBTI_TYPES.length)];
+    mbtiBadge.textContent = assignedType;
+
+    modalNum.textContent = num;
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideModal(){
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  // ---- events ----
+  btn.addEventListener('click', ()=>{
+    if(busy || modal.classList.contains('show')) return;
+    if(phase === 'idle'){
+      startDraw();
+    } else if(phase === 'spinning'){
+      stopManualDigit();
+    }
+  });
+
+  modalClose.addEventListener('click', hideModal);
+  modalBg.addEventListener('click', hideModal);
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.code === 'Space' || e.code === 'Enter'){
+      e.preventDefault();
+      if(modal.classList.contains('show')){
+        hideModal();
+      } else {
+        btn.click();
+      }
+    }
+  });
+
+  // ---- init ----
+  renderCards();
+})();
+</script>
+</body>
+</html>
